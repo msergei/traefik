@@ -30,7 +30,7 @@ services:
       - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
 
   whoami:
-    image: traefik/whoami:v1.8
+    image: traefik/whoami:latest
     networks:
       - proxy
     labels:
