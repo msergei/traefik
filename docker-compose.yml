@@ -1,6 +1,3 @@
-volumes:
-  letsencrypt: {}
-
 services:
   traefik:
     image: traefik:v3.0
@@ -12,7 +9,6 @@ services:
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - letsencrypt:/letsencrypt
     command:
       - --api.dashboard=true
       - --log.level=INFO
@@ -24,8 +20,6 @@ services:
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.asDefault=true
       - --entrypoints.websecure.http.tls.certresolver=myresolver
-      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.myresolver.acme.tlschallenge=true
     labels:
       - traefik.enable=true
       - traefik.http.routers.mydashboard.rule=Host(`traefik.localhost`)
