@@ -1,6 +1,8 @@
 services:
   traefik:
     platform: linux/arm64/v8
+    command:
+      - --certificatesresolvers.myresolver.acme.email=your-email@example.com
     labels:
       - traefik.http.routers.nextcloud.rule=Host(`traefik.localhost`)
 
