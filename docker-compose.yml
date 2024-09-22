@@ -1,5 +1,5 @@
 volumes:
-  - letsencrypt: {}
+  letsencrypt: {}
 
 services:
   traefik:
