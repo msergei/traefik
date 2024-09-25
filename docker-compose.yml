@@ -2,7 +2,6 @@ services:
   traefik:
     image: traefik:v3.0
     restart: always
-    platform: linux/${PLATFORM}
     ports:
       - 80:80/tcp
       - 443:443/tcp
@@ -31,12 +30,11 @@ services:
       - traefik.http.routers.mydashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
       - traefik.http.routers.mydashboard.service=api@internal
       - traefik.http.routers.mydashboard.middlewares=myauth
-      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/ # test:test
+      - traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}  # By default test:test
 
   whoami:
     image: traefik/whoami:latest
     restart: always
-    platform: linux/${PLATFORM}
     networks:
       - proxy
     labels:
