@@ -30,7 +30,7 @@ services:
       - traefik.http.routers.mydashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
       - traefik.http.routers.mydashboard.service=api@internal
       - traefik.http.routers.mydashboard.middlewares=myauth
-      - traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}  # By default test:test
+      - "traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}"  # By default test:test, use https://bcrypt-generator.com/
 
   whoami:
     image: traefik/whoami:latest
