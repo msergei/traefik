@@ -28,12 +28,26 @@ services:
       - --certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL}
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --experimental.plugins.crowdsec-bouncer.modulename=github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      - --experimental.plugins.crowdsec-bouncer.version=v1.2.1
     labels:
       - traefik.enable=true
+
+      # Dashboard router
       - traefik.http.routers.mydashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
       - traefik.http.routers.mydashboard.service=api@internal
       - traefik.http.routers.mydashboard.middlewares=myauth
-      - "traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}"
+
+      # Basic auth middleware
+      - traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}
+
+      - traefik.http.middlewares.ratelimit.ratelimit.average=100
+      - traefik.http.middlewares.ratelimit.ratelimit.burst=50
+      - traefik.http.middlewares.inflightreq.inflightreq.amount=10
+      - traefik.http.middlewares.circuitbreaker.circuitbreaker.expression=ResponseCodeRatio(500,600,0,600) > 0.25
+
+      - traefik.http.middlewares.crowdsec-bouncer.plugin.crowdsec-bouncer.enabled=true
+      - traefik.http.middlewares.crowdsec-bouncer.plugin.crowdsec-bouncer.crowdseclapikey=${CROW_SECRET_KEY}
 
   whoami:
     image: traefik/whoami:latest
@@ -46,7 +60,7 @@ services:
       - traefik.http.services.mywhoami.loadbalancer.server.port=80
       - traefik.http.middlewares.mywwwredirect.redirectregex.regex=^https://www\.(.*)
       - traefik.http.middlewares.mywwwredirect.redirectregex.replacement=https://$${1}
-      - traefik.http.routers.mywhoami.middlewares=mywwwredirect,myauth
+      - traefik.http.routers.mywhoami.middlewares=mywwwredirect,myauth,ratelimit,inflightreq,circuitbreaker,crowdsec-bouncer
 
 networks:
   proxy:
