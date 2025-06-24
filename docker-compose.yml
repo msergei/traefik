@@ -35,7 +35,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.mydashboard.rule=Host(`${TRAEFIK_DOMAIN}`)"
       - "traefik.http.routers.mydashboard.service=api@internal"
-      - "traefik.http.routers.mydashboard.middlewares=myauth"
+      - "traefik.http.routers.mydashboard.middlewares=myauth,ratelimit,inflightreq,circuitbreaker,crowdsec-bouncer"
       - "traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}"
       - "traefik.http.middlewares.ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.ratelimit.ratelimit.burst=50"
