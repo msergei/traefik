@@ -29,7 +29,7 @@ services:
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
       - --experimental.plugins.crowdsec-bouncer.modulename=github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
-      - --experimental.plugins.crowdsec-bouncer.version=v1.2.1
+      - --experimental.plugins.crowdsec-bouncer.version=v1.4.2
     labels:
       - traefik.enable=true
 
