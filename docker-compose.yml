@@ -57,6 +57,7 @@ services:
       retries: 5
       start_period: 30s
 
+
   crowdsec:
     image: crowdsecurity/crowdsec:latest
     restart: always
@@ -89,15 +90,7 @@ services:
       - "traefik.http.middlewares.mywwwredirect.redirectregex.regex=^https://www\\.(.*)"
       - "traefik.http.middlewares.mywwwredirect.redirectregex.replacement=https://$${1}"
       - "traefik.http.routers.mywhoami.middlewares=mywwwredirect,myauth,ratelimit,inflightreq,circuitbreaker,crowdsec-bouncer"
-    depends_on:
-      traefik:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
+
 
 volumes:
   letsencrypt:
