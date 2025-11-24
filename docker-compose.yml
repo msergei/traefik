@@ -3,34 +3,80 @@ services:
     image: traefik:v3
     restart: always
     ports:
-      - 80:80/tcp
-      - 443:443/tcp
+      - "80:80"
+      - "443:443"
     networks:
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
+      - traefik-logs:/var/log/traefik
+      - ./traefik_tls.yml:/etc/traefik/traefik_tls.yml:ro
+    depends_on:
+      crowdsec:
+        condition: service_healthy
     command:
+      - --ping=true
+      - --ping.entrypoint=traefik
+      - --entrypoints.traefik.address=:8080
       - --api.dashboard=true
       - --log.level=INFO
-      - --accesslog=true
+      - --accesslog.filepath=/var/log/traefik/access.log
       - --providers.docker.network=proxy
       - --providers.docker.exposedByDefault=false
+      - --providers.file.filename=/etc/traefik/traefik_tls.yml
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.asDefault=true
       - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --entrypoints.websecure.http.tls.options=modern@file
       - --certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL}
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --experimental.plugins.crowdsec-bouncer.modulename=github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      - --experimental.plugins.crowdsec-bouncer.version=v1.4.2
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.mydashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
-      - traefik.http.routers.mydashboard.service=api@internal
-      - traefik.http.routers.mydashboard.middlewares=myauth
-      - "traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}"  # By default test:test, use https://bcrypt-generator.com/
+      - "traefik.enable=true"
+      - "traefik.http.routers.mydashboard.rule=Host(`${TRAEFIK_DOMAIN}`)"
+      - "traefik.http.routers.mydashboard.service=api@internal"
+      - "traefik.http.routers.mydashboard.middlewares=myauth,ratelimit,inflightreq,circuitbreaker,crowdsec-bouncer"
+      - "traefik.http.middlewares.myauth.basicauth.users=${LOGIN}:${PASS_HASH}"
+      - "traefik.http.middlewares.ratelimit.ratelimit.average=300"
+      - "traefik.http.middlewares.ratelimit.ratelimit.burst=200"
+      - "traefik.http.middlewares.inflightreq.inflightreq.amount=100"
+      - "traefik.http.middlewares.circuitbreaker.circuitbreaker.expression=ResponseCodeRatio(500,600,0,600) > 0.25"
+      - "traefik.http.middlewares.crowdsec-bouncer.plugin.crowdsec-bouncer.enabled=true"
+      - "traefik.http.middlewares.crowdsec-bouncer.plugin.crowdsec-bouncer.crowdseclapikey=${CROWDSEC_BOUNCER_KEY}"
+      - "traefik.http.middlewares.crowdsec-bouncer.plugin.crowdsec-bouncer.crowdseclapiurl=http://crowdsec:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    restart: always
+    networks:
+      - proxy
+    environment:
+      TZ: Europe/Moscow
+      GID: "${GID:-$(stat -c '%g' /var/run/docker.sock)}"
+    volumes:
+      - traefik-logs:/var/log/traefik:ro
+      - crowdsec-config:/etc/crowdsec
+      - crowdsec-db:/var/lib/crowdsec/data
+    healthcheck:
+      test: ["CMD", "cscli", "lapi", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
 
   whoami:
     image: traefik/whoami:latest
@@ -38,15 +84,19 @@ services:
     networks:
       - proxy
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.mywhoami.rule=Host(`${WHOAMI_DOMAIN}`)
-      - traefik.http.services.mywhoami.loadbalancer.server.port=80
+      - "traefik.enable=true"
+      - "traefik.http.routers.mywhoami.rule=Host(`${WHOAMI_DOMAIN}`)"
+      - "traefik.http.services.mywhoami.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.mywwwredirect.redirectregex.regex=^https://www\\.(.*)"
+      - "traefik.http.middlewares.mywwwredirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.routers.mywhoami.middlewares=mywwwredirect,myauth,ratelimit,inflightreq,circuitbreaker,crowdsec-bouncer"
 
-      - traefik.http.middlewares.mywwwredirect.redirectregex.regex=^https://www\.(.*)
-      - traefik.http.middlewares.mywwwredirect.redirectregex.replacement=https://$${1}
-      - traefik.http.routers.mywhoami.middlewares=mywwwredirect
 
-      - traefik.http.routers.mywhoami.middlewares=myauth
+volumes:
+  letsencrypt:
+  traefik-logs:
+  crowdsec-config:
+  crowdsec-db:
 
 networks:
   proxy:
