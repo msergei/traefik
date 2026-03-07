@@ -32,6 +32,9 @@ services:
       - --entrypoints.websecure.asDefault=true
       - --entrypoints.websecure.http.tls.certresolver=myresolver
       - --entrypoints.websecure.http.tls.options=modern@file
+      - --entrypoints.websecure-internal.address=:8443
+      - --entrypoints.websecure-internal.http.tls.certresolver=myresolver
+      - --entrypoints.websecure-internal.http.tls.options=modern@file
       - --certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL}
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
